@@ -1,19 +1,20 @@
 import os
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Request
 from pydantic import BaseModel
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 app = FastAPI()
 
 url: str = os.environ.get("SUPABASE_URL", "")
 key: str = os.environ.get("SUPABASE_KEY", "")
 
+supabase = None
 try:
     if url and key:
-        supabase: Client = create_client(url, key)
+        supabase = create_client(url, key)
         print("Server running and connected to Supabase")
     else:
         print("Warning: SUPABASE_URL or SUPABASE_KEY is missing from environment variables.")
@@ -30,6 +31,8 @@ def read_root():
 
 @app.post("/auth/signup", status_code=status.HTTP_201_CREATED)
 def signup(credentials: UserCredentials):
+    if supabase is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase client not initialized. Check your .env file.")
     if not credentials.email or not credentials.password:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email and password are required")
     
@@ -44,6 +47,8 @@ def signup(credentials: UserCredentials):
 
 @app.post("/auth/login")
 def login(credentials: UserCredentials):
+    if supabase is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase client not initialized. Check your .env file.")
     if not credentials.email or not credentials.password:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email and password are required")
     
@@ -58,3 +63,20 @@ def login(credentials: UserCredentials):
         }
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": "Invalid login credentials"})
+
+@app.get("/public/info")
+def public_info():
+    return {"message": "Welcome stranger! This info is public."}
+
+@app.get("/protected/profile")
+def protected_profile(request: Request):
+    auth_header = request.headers.get("Authorization")
+    
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": "Access token required"})
+    
+    token = auth_header.split(" ")[1]
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": "Access token required"})
+        
+    return {"message": "You provided a token! (Unverified)"}
