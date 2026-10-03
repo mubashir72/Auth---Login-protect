@@ -79,4 +79,8 @@ def protected_profile(request: Request):
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": "Access token required"})
         
-    return {"message": "You provided a token! (Unverified)"}
+    try:
+        user_response = supabase.auth.get_user(token)
+        return {"user": user_response.user}
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": "Invalid or expired token"})
