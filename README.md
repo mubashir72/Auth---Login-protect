@@ -71,8 +71,7 @@ FastAPI automatically generates an interactive documentation page. By configurin
 ---
 
 ## 🤖 AI vs Me (Stage 7 Analysis)
-*To be filled out during Stage 7.*
 
-- **How the AI handled token extraction**: ...
-- **Security flaws it might have introduced**: ...
-- **What your prompt missed and what the AI assumed**: ...
+- **How the AI handled token extraction**: Instead of manually splitting the `Authorization` header string (e.g., `auth_header.split(" ")[1]`), the AI efficiently leveraged FastAPI's built-in `HTTPBearer` security scheme. This automatically parses the "Bearer " prefix and handles missing credentials cleanly.
+- **Security flaws it might have introduced**: The AI wrapped the token verification in a strict `try/except` block, ensuring that if Supabase throws an unexpected error (like a severely malformed JWT), the server won't crash with a `500 Internal Server Error`, but will safely return a `401 Unauthorized`. It successfully avoided common crashes.
+- **What your prompt missed and what the AI assumed**: The prompt didn't specify that FastAPI's `HTTPBearer` throws a `403 Forbidden` by default when credentials are missing. The AI assumed we wanted to strictly match the assignment's requirement of a `401 Unauthorized`, so it configured `HTTPBearer(auto_error=False)` and manually threw the `401` to ensure strict compliance.
