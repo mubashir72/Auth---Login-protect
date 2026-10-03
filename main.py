@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException, status, Request
+from fastapi import FastAPI, HTTPException, status, Request, Depends
 from pydantic import BaseModel
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -68,8 +68,7 @@ def login(credentials: UserCredentials):
 def public_info():
     return {"message": "Welcome stranger! This info is public."}
 
-@app.get("/protected/profile")
-def protected_profile(request: Request):
+def verify_token(request: Request):
     auth_header = request.headers.get("Authorization")
     
     if not auth_header or not auth_header.startswith("Bearer "):
@@ -81,6 +80,19 @@ def protected_profile(request: Request):
         
     try:
         user_response = supabase.auth.get_user(token)
-        return {"user": user_response.user}
+        return {"user": user_response.user, "token": token}
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": "Invalid or expired token"})
+
+@app.get("/protected/profile")
+def protected_profile(auth_data: dict = Depends(verify_token)):
+    return {"user": auth_data["user"]}
+
+@app.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(auth_data: dict = Depends(verify_token)):
+    supabase.auth.sign_out()
+    return None
+
+@app.get("/protected/dashboard")
+def protected_dashboard(auth_data: dict = Depends(verify_token)):
+    return {"message": f"Welcome to the dashboard, {auth_data['user'].email}!"}
